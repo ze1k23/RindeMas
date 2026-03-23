@@ -236,13 +236,7 @@ export async function deleteRepuesto(id) {
   if (error) log("deleteRepuesto", error)
 }
 // ─── EMPLEADOS ──────────────────────────────────────────────────────────────
-const mapEmpleado = e => ({
-  id: e.id,
-  user_id: e.user_id,
-  nombre: e.nombre,
-  telefono: e.telefono,
-  activo: e.activo,
-})
+
 
 export async function getEmpleados(userId) {
   const { data, error } = await supabase
@@ -285,3 +279,11 @@ export async function deleteEmpleado(id) {
   const { error } = await supabase.from("empleados").delete().eq("id", id)
   if (error) log("deleteEmpleado", error)
 }
+const mapEmpleado = e => ({
+  id: e.id,
+  user_id: e.user_id,
+  nombre: e.nombre,
+  telefono: e.telefono,
+  activo: e.activo,
+  recibeNotificaciones: e.recibe_notificaciones || false,
+})
