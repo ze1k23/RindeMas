@@ -1,3 +1,4 @@
+Trabajos.jsx
 import { useState, useEffect } from "react"
 import { Modal, Campo, IC, SC, BtnPrimario, BtnSecundario, BtnIcono, KpiCard, Badge, Tabla, Tr, Td, Vacio, ConfirmarEliminar, Spinner } from "./UI"
 import { calcCostoTrabajo, filtrarMaquinas, formatPeso, TIPOS_TRABAJO, GASTOS_POR_TIPO, calcGastosExtra } from "../utils"

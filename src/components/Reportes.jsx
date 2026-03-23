@@ -4,6 +4,8 @@ import { formatPeso, calcCostoTrabajo, calcRentabilidadLoteDB } from "../utils"
 import { getMaquinas, getTrabajos, getLotes, getCombustible } from "../db"
 import { analizarRentabilidad } from "../gemini"
 
+import { sendChatMessage } from "../gemini"
+
 function BarraH({ label, value, max, color = "bg-emerald-500" }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0
   return (
@@ -26,6 +28,27 @@ export default function Reportes({ userId }) {
   const [tab,       setTab]       = useState("general")
   const [analisisIA, setAnalisisIA] = useState("")
   const [cargandoIA, setCargandoIA] = useState(false)
+
+  const [mensajesChat, setMensajesChat] = useState([])
+  const [inputMessage, setInputMessage] = useState('')
+
+
+
+
+  const enviarMensaje = async () => {
+    if (!inputMessage.trim()) return
+    const userMsg = inputMessage.trim()
+    setInputMessage('')
+    setMensajesChat(prev => [...prev, { role: 'user', content: userMsg, timestamp: Date.now() }])
+    setCargandoIA(true)
+    const userData = { maquinas, trabajos, lotes }
+      const historial = mensajesChat.map(m => ({ role: m.role, content: m.content }))
+    historial.push({ role: 'user', content: userMsg })
+     const respuesta = await sendChatMessage(historial, userData)
+    setMensajesChat(prev => [...prev, { role: 'assistant', content: respuesta, timestamp: Date.now() }])
+    setCargandoIA(false)
+  }
+
 
   useEffect(() => {
     Promise.all([getTrabajos(userId), getMaquinas(userId), getCombustible(userId), getLotes(userId)])
@@ -286,32 +309,84 @@ export default function Reportes({ userId }) {
         </div>
       )}
 
-      {tab==="ia" && (
-        <div className="space-y-5">
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-            <div className="flex items-start gap-4">
-              <span className="text-3xl">🤖</span>
-              <div className="flex-1">
-                <p className="text-emerald-400 font-bold mb-1">Análisis de Rentabilidad con IA</p>
-                <p className="text-white/40 text-sm mb-4">Gemini analiza tus datos operativos y te da recomendaciones concretas para mejorar tu rentabilidad.</p>
-                {trabajos.length===0
-                  ? <p className="text-white/30 text-sm">Necesitás tener trabajos registrados para usar el análisis de IA.</p>
-                  : <BtnPrimario onClick={pedirAnalisisIA} disabled={cargandoIA}>
-                      {cargandoIA ? "Analizando..." : "Generar análisis"}
-                    </BtnPrimario>
-                }
+      // Dentro de Reportes.jsx, después de los otros tabs, reemplazar:
+
+{tab==="ia" && (
+  <div className="space-y-5">
+    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+      <div className="flex items-start gap-4">
+        <span className="text-3xl">🤖</span>
+        <div className="flex-1">
+          <p className="text-emerald-400 font-bold mb-1">AgroAsesor - Tu asistente inteligente</p>
+          <p className="text-white/40 text-sm mb-4">
+            Preguntame sobre rentabilidad, eficiencia de máquinas, costos, o cualquier aspecto de tu operación.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div className="rounded-2xl border border-white/8 bg-white/3 flex flex-col h-[500px]">
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {mensajesChat.length === 0 ? (
+          <div className="text-center text-white/30 py-20">
+            <p className="text-2xl mb-2">🌾</p>
+            <p>Hacé una pregunta sobre tu negocio</p>
+            <p className="text-xs mt-2">Ej: "¿Qué máquina es menos eficiente?" o "¿Cómo puedo reducir el consumo de combustible?"</p>
+          </div>
+        ) : (
+          mensajesChat.map((msg, idx) => (
+            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                msg.role === 'user' 
+                  ? 'bg-emerald-500/20 text-white border border-emerald-500/20' 
+                  : 'bg-white/5 text-white/80 border border-white/10'
+              }`}>
+                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                <p className="text-[10px] text-white/30 mt-1 text-right">
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                </p>
+              </div>
+            </div>
+          ))
+        )}
+        {cargandoIA && (
+          <div className="flex justify-start">
+            <div className="bg-white/5 rounded-2xl px-4 py-2 border border-white/10">
+              <div className="flex gap-1">
+                <span className="animate-pulse">●</span>
+                <span className="animate-pulse delay-100">●</span>
+                <span className="animate-pulse delay-200">●</span>
               </div>
             </div>
           </div>
-          {analisisIA && (
-            <div className="rounded-2xl border border-white/8 bg-white/3 p-5">
-              <p className="text-xs text-white/35 uppercase tracking-wider font-bold mb-3">Recomendaciones de la IA</p>
-              <div className="text-white/70 text-sm leading-relaxed whitespace-pre-line">{analisisIA}</div>
-              <p className="text-white/20 text-xs mt-4">* Basado en los datos registrados en RindeMás. Verificá con tu asesor agronómico antes de tomar decisiones importantes.</p>
-            </div>
-          )}
+        )}
+      </div>
+      <div className="border-t border-white/8 p-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500/50"
+            placeholder="Escribí tu pregunta..."
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && enviarMensaje()}
+            disabled={cargandoIA}
+          />
+          <button
+            onClick={enviarMensaje}
+            disabled={cargandoIA || !inputMessage.trim()}
+            className="px-4 py-2 rounded-xl bg-emerald-500 text-white font-bold text-sm disabled:opacity-40 hover:bg-emerald-400 transition-all"
+          >
+            Enviar
+          </button>
         </div>
-      )}
+        <p className="text-xs text-white/20 mt-2 text-center">
+          AgroAsesor analiza tus datos en tiempo real. Podés preguntar sobre máquinas, trabajos, lotes y rentabilidad.
+        </p>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   )
 }

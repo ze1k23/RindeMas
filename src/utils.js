@@ -156,8 +156,10 @@ export const CATEGORIAS_GASTO = [
   { id: "otros",         label: "Otros",           icon: "📋" },
 ]
 
+// ✅ CORRECCIÓN: evitar división por cero
 export function estadoService(horasService, intervalo) {
-  const p = Math.min(100, ((horasService || 0) / (intervalo || 1)) * 100)
+  const intervaloSeguro = intervalo || 250
+  const p = Math.min(100, ((horasService || 0) / intervaloSeguro) * 100)
   if (p >= 100) return { label: "URGENTE", text: "text-red-400",    bg: "bg-red-500/10",    border: "border-red-500/25",    pct: p }
   if (p >= 80)  return { label: "PRÓXIMO", text: "text-amber-400",  bg: "bg-amber-500/10",  border: "border-amber-500/25",  pct: p }
   return              { label: "OK",       text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25", pct: p }

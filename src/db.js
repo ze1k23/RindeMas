@@ -67,6 +67,18 @@ export async function deleteMaquina(id) {
   if (error) log("deleteMaquina", error)
 }
 
+// ✅ Nueva función: obtener máquina por nombre
+export async function getMaquinaPorNombre(userId, nombre) {
+  const { data, error } = await supabase
+    .from("maquinas")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("nombre", nombre)
+    .maybeSingle()
+  if (error) { log("getMaquinaPorNombre", error); return null }
+  return data ? mapMaquina(data) : null
+}
+
 // ─── LOTES ───────────────────────────────────────────────────────────────────
 export async function getLotes(userId) {
   const { data, error } = await supabase.from("lotes").select("*").eq("user_id", userId).order("created_at")
