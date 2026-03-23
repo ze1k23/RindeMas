@@ -11,12 +11,12 @@ export default async function handler(req, res) {
 
   const { Body, From } = req.body
   const telefono = From.replace('whatsapp:', '')
-  const mensaje = Body.trim()
+  const mensaje = Body.trim()   // definimos mensaje
 
-  // 🔁 Asigna tu user_id fijo (reemplazá por el UUID que copiaste)
+  // Reemplazá con tu UUID real de Supabase
   const userId = 'f8b6eb81-29a0-4763-800c-53806562d806'
 
-  // Parseo simple: busca palabras clave
+  // Parseo simple
   let maquina = ''
   let descripcion = mensaje
   let cantidad = 1
@@ -30,13 +30,17 @@ export default async function handler(req, res) {
   const cantMatch = mensaje.match(/cantidad[: ]+(\d+)/i)
   if (cantMatch) cantidad = parseInt(cantMatch[1], 10)
 
-  // Insertar en Supabase
+  // Fecha en formato YYYY-MM-DD
+  const hoy = new Date()
+  const fechaISO = hoy.toISOString().split('T')[0]  // "2026-03-23"
+
+  // Insertar
   const { error: insertError } = await supabase
     .from('repuestos')
     .insert({
       user_id: userId,
       maquina_nombre: maquina || 'Sin especificar',
-      fecha: new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }),
+      fecha: fechaISO,
       descripcion: descripcion,
       cantidad: cantidad,
       costo: 0,
@@ -49,7 +53,6 @@ export default async function handler(req, res) {
     return res.status(200).send('❌ Error al guardar el pedido.')
   }
 
-  // Respuesta de confirmación
   res.setHeader('Content-Type', 'text/plain')
   res.status(200).send(`✅ Pedido registrado:\nMáquina: ${maquina || 'Sin especificar'}\nDescripción: ${descripcion}\nCantidad: ${cantidad}`)
 }
