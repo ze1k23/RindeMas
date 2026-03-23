@@ -16,7 +16,7 @@ export function Campo({ label, hint, children }) {
 export function Modal({ titulo, subtitulo, onCerrar, children, footer }) {
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#0d1410] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="bg-[#0d1410] border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col md:max-w-md">
         <div className="px-6 py-4 border-b border-white/8 flex items-start justify-between shrink-0">
           <div>
             <h3 className="font-bold text-white">{titulo}</h3>
@@ -28,7 +28,7 @@ export function Modal({ titulo, subtitulo, onCerrar, children, footer }) {
         {footer && <div className="px-6 py-4 border-t border-white/8 flex gap-3 justify-end shrink-0">{footer}</div>}
       </div>
     </div>
-  )
+  ) 
 }
 
 export function BtnPrimario({ onClick, children, color = "emerald", disabled }) {
@@ -46,11 +46,11 @@ export function BtnIcono({ onClick, icon, title, danger }) {
 
 export function KpiCard({ icon, label, value, sub, color = "text-emerald-400", small }) {
   return (
-    <div className="bg-white/4 border border-white/8 rounded-2xl px-5 py-4">
-      {icon && <span className="text-lg mb-2 block">{icon}</span>}
-      <p className={`font-black ${small ? "text-xl" : "text-2xl"} ${color}`}>{value ?? "—"}</p>
-      <p className="text-xs text-white/30 uppercase tracking-wider mt-1">{label}</p>
-      {sub && <p className="text-xs text-white/20 mt-0.5">{sub}</p>}
+    <div className="bg-white/4 border border-white/8 rounded-2xl px-3 sm:px-5 py-3 sm:py-4">
+      {icon && <span className="text-base sm:text-lg mb-1 block">{icon}</span>}
+      <p className={`font-black ${small ? "text-base sm:text-xl" : "text-lg sm:text-2xl"} ${color}`}>{value ?? "—"}</p>
+      <p className="text-[10px] sm:text-xs text-white/30 uppercase tracking-wider mt-1">{label}</p>
+      {sub && <p className="text-[9px] sm:text-xs text-white/20 mt-0.5">{sub}</p>}
     </div>
   )
 }
@@ -120,7 +120,7 @@ export function Tr({ children, highlight }) {
 }
 
 export function Td({ children, mono, muted, bold, color }) {
-  return <td className={`px-5 py-3 ${mono?"font-mono":""} ${muted?"text-white/40":""} ${bold?"font-bold":""} ${color||"text-white"}`}>{children}</td>
+  return <td className={`px-3 sm:px-5 py-2 sm:py-3 ${mono?"font-mono":""} ${muted?"text-white/40":""} ${bold?"font-bold":""} ${color||"text-white"}`}>{children}</td>
 }
 
 export function ConfirmarEliminar({ nombre, onConfirmar, onCancelar }) {

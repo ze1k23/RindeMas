@@ -309,7 +309,7 @@ export default function Reportes({ userId }) {
         </div>
       )}
 
-      // Dentro de Reportes.jsx, después de los otros tabs, reemplazar:
+      
 
 {tab==="ia" && (
   <div className="space-y-5">
