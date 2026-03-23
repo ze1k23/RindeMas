@@ -8,17 +8,19 @@ import Flota       from "./components/Flota"
 import Trabajos    from "./components/Trabajos"
 import Combustible from "./components/Combustible"
 import Reportes    from "./components/Reportes"
+import Repuestos from "./components/Repuestos"
 
 const NAV = [
   { id: "dashboard",   icon: "⚡", label: "Dashboard"   },
-  { id: "lotes",       icon: "🗺️",  label: "Lotes"        },
+  { id: "lotes",       icon: "🗺️", label: "Lotes"        },
   { id: "flota",       icon: "🚜", label: "Flota"        },
   { id: "trabajos",    icon: "🌾", label: "Trabajos"     },
   { id: "combustible", icon: "⛽", label: "Combustible"  },
+  { id: "repuestos",   icon: "🔧", label: "Repuestos"    },
   { id: "reportes",    icon: "📊", label: "Reportes"     },
 ]
 
-const PANTALLAS = { Dashboard, Lotes, Flota, Trabajos, Combustible, Reportes }
+const PANTALLAS = { Dashboard, Lotes, Flota, Trabajos, Combustible, Repuestos, Reportes }
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -111,7 +113,7 @@ export default function App() {
         </header>
 
         <main className="flex-1 overflow-auto p-4 sm:p-8">
-          <Pantalla onNavegar={setSeccion} userId={session.user.id} />
+          <Pantalla onNavegar={setSeccion} userId={session.user.id} user={session.user} />
         </main>
 
         {/* Bottom navigation para móvil */}

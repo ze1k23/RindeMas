@@ -67,3 +67,47 @@ export async function getPrecioCereal(cereal) {
   // Implementación pendiente
   return null
 }
+export async function analizarRepuestos(maquinaNombre, repuestos, maquina, trabajos) {
+  if (!repuestos.length) return "No hay repuestos registrados para esta máquina todavía."
+
+  const totalGasto = repuestos.reduce((s, r) => s + (r.costo || 0), 0)
+  const repuestosAgrupados = repuestos.reduce((acc, r) => {
+    const key = r.descripcion.toLowerCase()
+    acc[key] = (acc[key] || 0) + r.cantidad
+    return acc
+  }, {})
+  const repuestosFrecuentes = Object.entries(repuestosAgrupados)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0,3)
+    .map(([desc, cant]) => `${desc} (${cant} veces)`)
+    .join(", ")
+
+  const horasTotales = maquina?.horasTotales || 0
+  const años = maquina?.año ? new Date().getFullYear() - maquina.año : "desconocido"
+  const ultimosTrabajos = trabajos.slice(0,3).map(t => `${t.tipo} en ${t.lote} (${t.ha} ha)`).join("; ")
+
+  const prompt = `
+Eres un mecánico agrícola y asesor de maquinaria pesada con experiencia en John Deere, Agrometal, etc.
+Analizá los siguientes datos de una máquina y respondé en español de forma clara y práctica:
+
+Máquina: ${maquinaNombre}
+- Tipo: ${maquina?.tipo || "desconocido"}
+- Año: ${maquina?.año || "desconocido"} (antigüedad ~${años} años)
+- Horas totales: ${horasTotales} h
+
+Historial de repuestos (${repuestos.length} registros):
+- Gasto total: $${totalGasto.toLocaleString()}
+- Repuestos más frecuentes: ${repuestosFrecuentes}
+
+Trabajos recientes con esta máquina:
+${ultimosTrabajos || "No hay trabajos registrados"}
+
+Respondé en este formato (sin asteriscos, con viñetas):
+- Recomendación: [reparar / cambiar / mantener vigilancia] explicando por qué.
+- Posibles causas de fallas: [basado en repuestos frecuentes y tipo de máquina]
+- Sugerencias de mantenimiento preventivo.
+
+Usá un tono práctico, máximo 100 palabras.
+  `
+  return await preguntar(prompt)
+}

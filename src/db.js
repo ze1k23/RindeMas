@@ -174,3 +174,64 @@ export async function deleteCombustible(id) {
   const { error } = await supabase.from("combustible").delete().eq("id", id)
   if (error) log("deleteCombustible", error)
 }
+// ─── REPUESTOS ──────────────────────────────────────────────────────────────
+const mapRepuesto = r => ({
+  id: r.id,
+  maquina: r.maquina_nombre,
+  fecha: r.fecha,
+  descripcion: r.descripcion,
+  cantidad: r.cantidad || 1,
+  costo: r.costo || 0,
+  proveedor: r.proveedor || "",
+  notas: r.notas || "",
+})
+
+export async function getRepuestos(userId) {
+  const { data, error } = await supabase
+    .from("repuestos")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+  if (error) { log("getRepuestos", error); return [] }
+  return data.map(mapRepuesto)
+}
+
+export async function addRepuesto(userId, r) {
+  const { data, error } = await supabase
+    .from("repuestos")
+    .insert({
+      user_id: userId,
+      maquina_nombre: r.maquina,
+      fecha: r.fecha,
+      descripcion: r.descripcion,
+      cantidad: r.cantidad || 1,
+      costo: r.costo || 0,
+      proveedor: r.proveedor || "",
+      notas: r.notas || "",
+    })
+    .select()
+    .single()
+  if (error) { log("addRepuesto", error); return null }
+  return mapRepuesto(data)
+}
+
+export async function updateRepuesto(r) {
+  const { error } = await supabase
+    .from("repuestos")
+    .update({
+      maquina_nombre: r.maquina,
+      fecha: r.fecha,
+      descripcion: r.descripcion,
+      cantidad: r.cantidad || 1,
+      costo: r.costo || 0,
+      proveedor: r.proveedor || "",
+      notas: r.notas || "",
+    })
+    .eq("id", r.id)
+  if (error) log("updateRepuesto", error)
+}
+
+export async function deleteRepuesto(id) {
+  const { error } = await supabase.from("repuestos").delete().eq("id", id)
+  if (error) log("deleteRepuesto", error)
+}

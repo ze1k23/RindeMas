@@ -6,6 +6,7 @@ export default function Auth() {
   const [email,    setEmail]    = useState("")
   const [password, setPassword] = useState("")
   const [nombre,   setNombre]   = useState("")
+  const [whatsapp, setWhatsapp] = useState("")
   const [cargando, setCargando] = useState(false)
   const [error,    setError]    = useState("")
   const [mensaje,  setMensaje]  = useState("")
@@ -28,10 +29,19 @@ export default function Auth() {
   const handleRegistro = async () => {
     if (!email || !password || !nombre) { setError("Completá todos los campos."); return }
     if (password.length < 6) { setError("La contraseña debe tener al menos 6 caracteres."); return }
+    if (whatsapp && !/^[0-9]{10,15}$/.test(whatsapp.replace(/\D/g, ''))) {
+      setError("WhatsApp: ingresá solo números (código país + número, sin espacios, ej: 5491123456789).")
+      return
+    }
     setCargando(true); reset()
     const { data, error } = await supabase.auth.signUp({
       email, password,
-      options: { data: { nombre_empresa: nombre } }
+      options: { 
+        data: { 
+          nombre_empresa: nombre,
+          whatsapp: whatsapp || null 
+        } 
+      }
     })
     if (error) {
       setError(error.message.includes("already registered")
@@ -66,10 +76,17 @@ export default function Auth() {
             ))}
           </div>
           {modo === "registro" && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-white/35 uppercase tracking-wider">Nombre de empresa</label>
-              <input className={IC} placeholder="ej: Contratista Rural SRL" value={nombre} onChange={e => setNombre(e.target.value)} />
-            </div>
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-white/35 uppercase tracking-wider">Nombre de empresa</label>
+                <input className={IC} placeholder="ej: Contratista Rural SRL" value={nombre} onChange={e => setNombre(e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-white/35 uppercase tracking-wider">WhatsApp (con código país, sin espacios)</label>
+                <input className={IC} type="tel" placeholder="ej: 5491123456789" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} />
+                <p className="text-white/20 text-xs mt-1">Para recibir notificaciones de repuestos</p>
+              </div>
+            </>
           )}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-white/35 uppercase tracking-wider">Email</label>
