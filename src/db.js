@@ -184,6 +184,8 @@ const mapRepuesto = r => ({
   costo: r.costo || 0,
   proveedor: r.proveedor || "",
   notas: r.notas || "",
+  comprado: r.comprado || false,
+  fecha_compra: r.fecha_compra,
 })
 
 export async function getRepuestos(userId) {

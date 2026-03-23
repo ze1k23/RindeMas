@@ -1,4 +1,4 @@
-// src/components/Repuestos.jsx
+// src/components/Repuestos.jsx (versión con botón comprado y notificación mejorada)
 import { useState, useEffect } from "react"
 import { Modal, Campo, IC, SC, BtnPrimario, BtnSecundario, BtnIcono, KpiCard, Tabla, Tr, Td, Badge, Vacio, ConfirmarEliminar, Spinner, Seccion } from "./UI"
 import { formatPeso, formatNum } from "../utils"
@@ -60,6 +60,7 @@ export default function Repuestos({ userId, user }) {
   const [fechaHasta, setFechaHasta] = useState("")
   const [costoMin, setCostoMin] = useState("")
   const [costoMax, setCostoMax] = useState("")
+  const [filtroComprado, setFiltroComprado] = useState("todos") // "todos", "comprados", "no_comprados"
 
   useEffect(() => {
     Promise.all([getRepuestos(userId), getMaquinas(userId), getTrabajos(userId)])
@@ -86,6 +87,8 @@ export default function Repuestos({ userId, user }) {
     const costo = r.costo || 0
     if (costoMin && costo < parseFloat(costoMin)) return false
     if (costoMax && costo > parseFloat(costoMax)) return false
+    if (filtroComprado === "comprados" && !r.comprado) return false
+    if (filtroComprado === "no_comprados" && r.comprado) return false
     return true
   })
 
@@ -104,7 +107,7 @@ export default function Repuestos({ userId, user }) {
       nuevoRepuesto = act
     }
 
-    // Enviar notificación WhatsApp si es un nuevo repuesto y el usuario tiene número
+    // Enviar notificación WhatsApp si es nuevo repuesto y el usuario tiene número
     if (nuevoRepuesto && user?.user_metadata?.whatsapp) {
       try {
         await fetch('/api/send-whatsapp', {
@@ -123,6 +126,13 @@ export default function Repuestos({ userId, user }) {
     setModal(null)
   }
 
+  const marcarComprado = async (repuesto) => {
+    const hoyISO = new Date().toISOString().split('T')[0]
+    const updated = { ...repuesto, comprado: true, fecha_compra: hoyISO }
+    await updateRepuesto(updated)
+    setRepuestos(prev => prev.map(r => r.id === repuesto.id ? updated : r))
+  }
+
   const confirmarEliminar = async () => {
     await deleteRepuesto(eliminar.id)
     setRepuestos(prev => prev.filter(r => r.id !== eliminar.id))
@@ -130,6 +140,7 @@ export default function Repuestos({ userId, user }) {
   }
 
   const totalGasto = repuestosFiltrados.reduce((s, r) => s + (r.costo || 0), 0)
+  const totalComprado = repuestosFiltrados.filter(r => r.comprado).reduce((s, r) => s + (r.costo || 0), 0)
   const totalRepuestos = repuestosFiltrados.length
 
   const porMaquina = repuestosFiltrados.reduce((acc, r) => {
@@ -168,10 +179,11 @@ export default function Repuestos({ userId, user }) {
       r.cantidad.toString(),
       `$${r.costo.toLocaleString()}`,
       r.proveedor || "",
+      r.comprado ? "Sí" : "No"
     ])
     autoTable(doc, {
       startY: 60,
-      head: [["Fecha", "Máquina", "Descripción", "Cant.", "Costo", "Proveedor"]],
+      head: [["Fecha", "Máquina", "Descripción", "Cant.", "Costo", "Proveedor", "Comprado"]],
       body: tableData,
       theme: "grid",
       styles: { fontSize: 8 },
@@ -186,6 +198,7 @@ export default function Repuestos({ userId, user }) {
     setFechaHasta("")
     setCostoMin("")
     setCostoMax("")
+    setFiltroComprado("todos")
   }
 
   return (
@@ -225,16 +238,25 @@ export default function Repuestos({ userId, user }) {
             <label className="text-xs text-white/35 uppercase tracking-wider block mb-1">Costo máx.</label>
             <input type="number" className={IC} placeholder="$" value={costoMax} onChange={e=>setCostoMax(e.target.value)} />
           </div>
+          <div className="min-w-[120px]">
+            <label className="text-xs text-white/35 uppercase tracking-wider block mb-1">Comprado</label>
+            <select className={SC} value={filtroComprado} onChange={e=>setFiltroComprado(e.target.value)}>
+              <option value="todos">Todos</option>
+              <option value="comprados">Comprados</option>
+              <option value="no_comprados">No comprados</option>
+            </select>
+          </div>
           <div>
             <BtnSecundario onClick={limpiarFiltros}>Limpiar</BtnSecundario>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard label="Repuestos filtrados" value={totalRepuestos} color="text-sky-400" />
         <KpiCard label="Gasto total" value={formatPeso(totalGasto)} color="text-red-400" />
-        <KpiCard label="Promedio x repuesto" value={totalRepuestos ? formatPeso(totalGasto / totalRepuestos) : "$0"} color="text-emerald-400" />
+        <KpiCard label="Comprado (real)" value={formatPeso(totalComprado)} color="text-emerald-400" />
+        <KpiCard label="Pendiente" value={formatPeso(totalGasto - totalComprado)} color="text-amber-400" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -258,6 +280,7 @@ export default function Repuestos({ userId, user }) {
                     <div className="text-right">
                       <p className="text-emerald-400 font-bold text-sm">{formatPeso(r.costo)}</p>
                       <p className="text-white/25 text-xs">x{r.cantidad}</p>
+                      {r.comprado && <Badge color="emerald" className="mt-1">Comprado</Badge>}
                     </div>
                   </div>
                 </div>
@@ -277,7 +300,7 @@ export default function Repuestos({ userId, user }) {
       </div>
 
       <div className="rounded-2xl border border-white/8 bg-white/3 overflow-hidden">
-        <Tabla headers={["Fecha","Máquina","Descripción","Cant.","Costo","Proveedor",""]}
+        <Tabla headers={["Fecha","Máquina","Descripción","Cant.","Costo","Proveedor","Comprado","Acciones"]}
           vacio={repuestosFiltrados.length===0 && <Vacio icon="🔧" titulo="Sin repuestos" sub="Ajustá los filtros o registrá repuestos."/>}>
           {repuestosFiltrados.map(r => (
             <Tr key={r.id}>
@@ -287,10 +310,17 @@ export default function Repuestos({ userId, user }) {
               <Td muted>{r.cantidad}</Td>
               <Td mono color="text-emerald-400">{formatPeso(r.costo)}</Td>
               <Td muted>{r.proveedor || "—"}</Td>
-              <td className="px-5 py-3"><div className="flex gap-1">
-                <BtnIcono onClick={()=>setModal(r)} icon="✏️" title="Editar"/>
-                <BtnIcono onClick={()=>setEliminar(r)} icon="🗑️" title="Eliminar" danger/>
-              </div>``
+              <Td>{r.comprado ? <Badge color="emerald">Comprado</Badge> : <Badge color="amber">Pendiente</Badge>}</Td>
+              <td className="px-5 py-3">
+                <div className="flex gap-1">
+                  {!r.comprado && (
+                    <button onClick={() => marcarComprado(r)} className="p-1.5 rounded-lg text-white/25 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all" title="Marcar como comprado">
+                      ✅
+                    </button>
+                  )}
+                  <BtnIcono onClick={()=>setModal(r)} icon="✏️" title="Editar"/>
+                  <BtnIcono onClick={()=>setEliminar(r)} icon="🗑️" title="Eliminar" danger/>
+                </div>
               </td>
             </Tr>
           ))}
