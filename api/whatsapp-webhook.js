@@ -11,12 +11,12 @@ export default async function handler(req, res) {
 
   const { Body, From } = req.body
   const telefono = From.replace('whatsapp:', '')
-  const mensaje = Body.trim()   // definimos mensaje
+  const mensaje = Body.trim()
 
-  // Reemplazá con tu UUID real de Supabase
+  // 🔁 Reemplazá con tu UUID real de Supabase
   const userId = 'f8b6eb81-29a0-4763-800c-53806562d806'
 
-  // Parseo simple
+  // Parseo básico
   let maquina = ''
   let descripcion = mensaje
   let cantidad = 1
@@ -30,11 +30,10 @@ export default async function handler(req, res) {
   const cantMatch = mensaje.match(/cantidad[: ]+(\d+)/i)
   if (cantMatch) cantidad = parseInt(cantMatch[1], 10)
 
-  // Fecha en formato YYYY-MM-DD
+  // ✅ Fecha en formato YYYY-MM-DD
   const hoy = new Date()
-  const fechaISO = hoy.toISOString().split('T')[0]  // "2026-03-23"
+  const fechaISO = hoy.toISOString().split('T')[0] // "2026-03-23"
 
-  // Insertar
   const { error: insertError } = await supabase
     .from('repuestos')
     .insert({
