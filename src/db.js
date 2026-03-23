@@ -174,7 +174,7 @@ export async function deleteCombustible(id) {
   const { error } = await supabase.from("combustible").delete().eq("id", id)
   if (error) log("deleteCombustible", error)
 }
-// ─── REPUESTOS ──────────────────────────────────────────────────────────────
+// ===== repuestos =====
 const mapRepuesto = r => ({
   id: r.id,
   maquina: r.maquina_nombre,
@@ -182,10 +182,10 @@ const mapRepuesto = r => ({
   descripcion: r.descripcion,
   cantidad: r.cantidad || 1,
   costo: r.costo || 0,
+  comprado: r.comprado || false,
+  costo_real: r.costo_real || 0,
   proveedor: r.proveedor || "",
   notas: r.notas || "",
-  comprado: r.comprado || false,
-  fecha_compra: r.fecha_compra,
 })
 
 export async function getRepuestos(userId) {
@@ -208,6 +208,8 @@ export async function addRepuesto(userId, r) {
       descripcion: r.descripcion,
       cantidad: r.cantidad || 1,
       costo: r.costo || 0,
+      comprado: false,
+      costo_real: 0,
       proveedor: r.proveedor || "",
       notas: r.notas || "",
     })
@@ -226,6 +228,8 @@ export async function updateRepuesto(r) {
       descripcion: r.descripcion,
       cantidad: r.cantidad || 1,
       costo: r.costo || 0,
+      comprado: r.comprado || false,
+      costo_real: r.costo_real || 0,
       proveedor: r.proveedor || "",
       notas: r.notas || "",
     })
@@ -237,8 +241,16 @@ export async function deleteRepuesto(id) {
   const { error } = await supabase.from("repuestos").delete().eq("id", id)
   if (error) log("deleteRepuesto", error)
 }
-// ─── EMPLEADOS ──────────────────────────────────────────────────────────────
 
+// ===== empleados =====
+const mapEmpleado = e => ({
+  id: e.id,
+  user_id: e.user_id,
+  nombre: e.nombre,
+  telefono: e.telefono,
+  activo: e.activo,
+  recibeNotificaciones: e.recibe_notificaciones || false,
+})
 
 export async function getEmpleados(userId) {
   const { data, error } = await supabase
@@ -258,6 +270,7 @@ export async function addEmpleado(userId, empleado) {
       nombre: empleado.nombre,
       telefono: empleado.telefono,
       activo: empleado.activo !== undefined ? empleado.activo : true,
+      recibe_notificaciones: empleado.recibeNotificaciones || false,
     })
     .select()
     .single()
@@ -272,6 +285,7 @@ export async function updateEmpleado(empleado) {
       nombre: empleado.nombre,
       telefono: empleado.telefono,
       activo: empleado.activo,
+      recibe_notificaciones: empleado.recibeNotificaciones,
     })
     .eq("id", empleado.id)
   if (error) log("updateEmpleado", error)
@@ -281,11 +295,3 @@ export async function deleteEmpleado(id) {
   const { error } = await supabase.from("empleados").delete().eq("id", id)
   if (error) log("deleteEmpleado", error)
 }
-const mapEmpleado = e => ({
-  id: e.id,
-  user_id: e.user_id,
-  nombre: e.nombre,
-  telefono: e.telefono,
-  activo: e.activo,
-  recibeNotificaciones: e.recibe_notificaciones || false,
-})

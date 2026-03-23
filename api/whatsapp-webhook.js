@@ -1,4 +1,3 @@
-// api/whatsapp-webhook.js
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -12,7 +11,7 @@ export default async function handler(req, res) {
   const { Body, From } = req.body
   const telefono = From.replace('whatsapp:', '').replace(/^\+/, '')
 
-  // Buscar empleado por teléfono
+  // Buscar empleado
   const { data: empleado, error: empError } = await supabase
     .from('empleados')
     .select('user_id, nombre')
@@ -21,14 +20,14 @@ export default async function handler(req, res) {
     .maybeSingle()
 
   if (empError || !empleado) {
-    console.error('Empleado no autorizado', telefono)
+    console.error('Empleado no autorizado', telefono, empError)
     return res.status(200).send('❌ Número no autorizado. Contactá al administrador.')
   }
 
   const userId = empleado.user_id
   const mensaje = Body.trim()
 
-  // Parseo básico
+  // Parseo simple
   let maquina = ''
   let descripcion = mensaje
   let cantidad = 1
@@ -55,6 +54,8 @@ export default async function handler(req, res) {
       descripcion: descripcion,
       cantidad: cantidad,
       costo: 0,
+      comprado: false,
+      costo_real: 0,
       proveedor: 'WhatsApp',
       notas: `Pedido por ${empleado.nombre} (${telefono})`
     })
@@ -66,16 +67,21 @@ export default async function handler(req, res) {
     return res.status(200).send('❌ Error al guardar el pedido.')
   }
 
-  // Notificar al dueño (opcional)
-  const { data: ownerData } = await supabase.auth.admin.getUserById(userId)
-  const ownerWhatsapp = ownerData?.user?.user_metadata?.whatsapp
-  if (ownerWhatsapp) {
+  // Buscar destinatario de notificaciones
+  const { data: notificador } = await supabase
+    .from('empleados')
+    .select('telefono, nombre')
+    .eq('user_id', userId)
+    .eq('recibe_notificaciones', true)
+    .maybeSingle()
+
+  if (notificador && notificador.telefono) {
     try {
-      await fetch(`${process.env.VERCEL_URL || 'https://rinde-mas-fawn.vercel.app'}/api/send-whatsapp`, {
+      const response = await fetch(`${process.env.VERCEL_URL || 'https://rinde-mas-fawn.vercel.app'}/api/send-whatsapp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: ownerWhatsapp,
+          to: notificador.telefono,
           repuesto: {
             maquina: nuevoRepuesto.maquina_nombre,
             descripcion: nuevoRepuesto.descripcion,
@@ -85,12 +91,18 @@ export default async function handler(req, res) {
           }
         })
       })
+      if (!response.ok) {
+        console.error('Error al notificar:', response.status)
+      } else {
+        console.log('Notificación enviada a', notificador.telefono)
+      }
     } catch (err) {
-      console.error('Error notificando al dueño:', err)
+      console.error('Error notificando:', err)
     }
+  } else {
+    console.log('No hay empleado designado para notificaciones')
   }
 
-  // Respuesta al empleado
   res.setHeader('Content-Type', 'text/plain')
-  res.status(200).send(`✅ Pedido registrado:\nMáquina: ${maquina || 'Sin especificar'}\nDescripción: ${descripcion}\nCantidad: ${cantidad}\n\nEl dueño será notificado.`)
+  res.status(200).send(`✅ Pedido registrado:\nMáquina: ${maquina || 'Sin especificar'}\nDescripción: ${descripcion}\nCantidad: ${cantidad}\n\nEl encargado de compras será notificado.`)
 }
