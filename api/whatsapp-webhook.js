@@ -3,32 +3,23 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY  // ¡usa la service role key para evitar RLS!
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).send('Method Not Allowed')
-  }
+  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed')
 
-  // Twilio envía los datos en formato application/x-www-form-urlencoded
-  const { Body, From, WaId } = req.body  // Body = mensaje, From = número del remitente (con código)
+  const { Body, From } = req.body
+  const telefono = From.replace('whatsapp:', '')
+  const mensaje = Body.trim()
 
-  const telefono = From.replace('whatsapp:', '')  // ej: "+5491123456789"
+  // 🔁 Asigna tu user_id fijo (reemplazá por el UUID que copiaste)
+  const userId = 'f8b6eb81-29a0-4763-800c-53806562d806'
 
-  // Buscar a qué usuario pertenece este número en la tabla empleados
- // Temporal: usa tu user_id fijo para pruebas
-const userId = 'f8b6eb81-29a0-4763-800c-53806562d806' // pega el UUID que copiaste
-
-
-
-  // Intentar parsear el mensaje con un formato simple
-  // Ejemplo esperado: "repuesto maquina: cosechadora descripcion: filtro aceite cantidad: 2"
-  // Podés usar regex o split. Por simplicidad, buscamos palabras clave:
+  // Parseo simple: busca palabras clave
   let maquina = ''
-  let descripcion = ''
+  let descripcion = mensaje
   let cantidad = 1
-  let costo = 0
 
   const maquinaMatch = mensaje.match(/maquina[: ]+([^\n]+)/i)
   if (maquinaMatch) maquina = maquinaMatch[1].trim()
@@ -39,12 +30,7 @@ const userId = 'f8b6eb81-29a0-4763-800c-53806562d806' // pega el UUID que copias
   const cantMatch = mensaje.match(/cantidad[: ]+(\d+)/i)
   if (cantMatch) cantidad = parseInt(cantMatch[1], 10)
 
-  // Si no se detecta formato estructurado, tomamos todo el mensaje como descripción
-  if (!descripcion) {
-    descripcion = Body.trim()
-  }
-
-  // Registrar repuesto en la tabla repuestos
+  // Insertar en Supabase
   const { error: insertError } = await supabase
     .from('repuestos')
     .insert({
@@ -53,19 +39,17 @@ const userId = 'f8b6eb81-29a0-4763-800c-53806562d806' // pega el UUID que copias
       fecha: new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }),
       descripcion: descripcion,
       cantidad: cantidad,
-      costo: 0,   // precio pendiente, el dueño lo completará luego
+      costo: 0,
       proveedor: 'WhatsApp',
-      notas: `Pedido por ${empleado.nombre} (${telefono})`
+      notas: `Pedido desde ${telefono}`
     })
 
   if (insertError) {
-    console.error('Error al insertar repuesto:', insertError)
-    return res.status(200).send('❌ Error al guardar el pedido. Contactá al administrador.')
+    console.error('Error al insertar:', insertError)
+    return res.status(200).send('❌ Error al guardar el pedido.')
   }
 
-  // Respuesta de confirmación al remitente
-  const respuesta = `✅ Pedido registrado:\nMáquina: ${maquina || 'Sin especificar'}\nDescripción: ${descripcion}\nCantidad: ${cantidad}\n\nEl dueño revisará el costo y proveedor.`
-
+  // Respuesta de confirmación
   res.setHeader('Content-Type', 'text/plain')
-  res.status(200).send(respuesta)
+  res.status(200).send(`✅ Pedido registrado:\nMáquina: ${maquina || 'Sin especificar'}\nDescripción: ${descripcion}\nCantidad: ${cantidad}`)
 }
