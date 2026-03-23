@@ -235,3 +235,53 @@ export async function deleteRepuesto(id) {
   const { error } = await supabase.from("repuestos").delete().eq("id", id)
   if (error) log("deleteRepuesto", error)
 }
+// ─── EMPLEADOS ──────────────────────────────────────────────────────────────
+const mapEmpleado = e => ({
+  id: e.id,
+  user_id: e.user_id,
+  nombre: e.nombre,
+  telefono: e.telefono,
+  activo: e.activo,
+})
+
+export async function getEmpleados(userId) {
+  const { data, error } = await supabase
+    .from("empleados")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at")
+  if (error) { log("getEmpleados", error); return [] }
+  return data.map(mapEmpleado)
+}
+
+export async function addEmpleado(userId, empleado) {
+  const { data, error } = await supabase
+    .from("empleados")
+    .insert({
+      user_id: userId,
+      nombre: empleado.nombre,
+      telefono: empleado.telefono,
+      activo: empleado.activo !== undefined ? empleado.activo : true,
+    })
+    .select()
+    .single()
+  if (error) { log("addEmpleado", error); return null }
+  return mapEmpleado(data)
+}
+
+export async function updateEmpleado(empleado) {
+  const { error } = await supabase
+    .from("empleados")
+    .update({
+      nombre: empleado.nombre,
+      telefono: empleado.telefono,
+      activo: empleado.activo,
+    })
+    .eq("id", empleado.id)
+  if (error) log("updateEmpleado", error)
+}
+
+export async function deleteEmpleado(id) {
+  const { error } = await supabase.from("empleados").delete().eq("id", id)
+  if (error) log("deleteEmpleado", error)
+}

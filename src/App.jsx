@@ -9,6 +9,7 @@ import Trabajos    from "./components/Trabajos"
 import Combustible from "./components/Combustible"
 import Reportes    from "./components/Reportes"
 import Repuestos from "./components/Repuestos"
+import Empleados from "./components/Empleados"
 
 const NAV = [
   { id: "dashboard",   icon: "⚡", label: "Dashboard"   },
@@ -17,10 +18,11 @@ const NAV = [
   { id: "trabajos",    icon: "🌾", label: "Trabajos"     },
   { id: "combustible", icon: "⛽", label: "Combustible"  },
   { id: "repuestos",   icon: "🔧", label: "Repuestos"    },
+  { id: "empleados",   icon: "👥", label: "Empleados"    },
   { id: "reportes",    icon: "📊", label: "Reportes"     },
 ]
 
-const PANTALLAS = { Dashboard, Lotes, Flota, Trabajos, Combustible, Repuestos, Reportes }
+const PANTALLAS = { Dashboard, Lotes, Flota, Trabajos, Combustible, Repuestos, Empleados, Reportes }
 
 export default function App() {
   const [session, setSession] = useState(null)

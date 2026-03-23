@@ -10,11 +10,23 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed')
 
   const { Body, From } = req.body
-  const telefono = From.replace('whatsapp:', '')
-  const mensaje = Body.trim()
+  const telefono = From.replace('whatsapp:', '').replace(/^\+/, '')
 
-  // 🔁 Reemplazá con tu UUID real de Supabase
-  const userId = 'f8b6eb81-29a0-4763-800c-53806562d806'
+  // Buscar empleado por teléfono
+  const { data: empleado, error: empError } = await supabase
+    .from('empleados')
+    .select('user_id, nombre')
+    .eq('telefono', telefono)
+    .eq('activo', true)
+    .maybeSingle()
+
+  if (empError || !empleado) {
+    console.error('Empleado no autorizado', telefono)
+    return res.status(200).send('❌ Número no autorizado. Contactá al administrador.')
+  }
+
+  const userId = empleado.user_id
+  const mensaje = Body.trim()
 
   // Parseo básico
   let maquina = ''
@@ -30,11 +42,11 @@ export default async function handler(req, res) {
   const cantMatch = mensaje.match(/cantidad[: ]+(\d+)/i)
   if (cantMatch) cantidad = parseInt(cantMatch[1], 10)
 
-  // ✅ Fecha en formato YYYY-MM-DD
   const hoy = new Date()
-  const fechaISO = hoy.toISOString().split('T')[0] // "2026-03-23"
+  const fechaISO = hoy.toISOString().split('T')[0]
 
-  const { error: insertError } = await supabase
+  // Insertar repuesto
+  const { data: nuevoRepuesto, error: insertError } = await supabase
     .from('repuestos')
     .insert({
       user_id: userId,
@@ -44,14 +56,41 @@ export default async function handler(req, res) {
       cantidad: cantidad,
       costo: 0,
       proveedor: 'WhatsApp',
-      notas: `Pedido desde ${telefono}`
+      notas: `Pedido por ${empleado.nombre} (${telefono})`
     })
+    .select()
+    .single()
 
   if (insertError) {
     console.error('Error al insertar:', insertError)
     return res.status(200).send('❌ Error al guardar el pedido.')
   }
 
+  // Notificar al dueño (opcional)
+  const { data: ownerData } = await supabase.auth.admin.getUserById(userId)
+  const ownerWhatsapp = ownerData?.user?.user_metadata?.whatsapp
+  if (ownerWhatsapp) {
+    try {
+      await fetch(`${process.env.VERCEL_URL || 'https://rinde-mas-fawn.vercel.app'}/api/send-whatsapp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: ownerWhatsapp,
+          repuesto: {
+            maquina: nuevoRepuesto.maquina_nombre,
+            descripcion: nuevoRepuesto.descripcion,
+            cantidad: nuevoRepuesto.cantidad,
+            costo: nuevoRepuesto.costo,
+            proveedor: 'WhatsApp'
+          }
+        })
+      })
+    } catch (err) {
+      console.error('Error notificando al dueño:', err)
+    }
+  }
+
+  // Respuesta al empleado
   res.setHeader('Content-Type', 'text/plain')
-  res.status(200).send(`✅ Pedido registrado:\nMáquina: ${maquina || 'Sin especificar'}\nDescripción: ${descripcion}\nCantidad: ${cantidad}`)
+  res.status(200).send(`✅ Pedido registrado:\nMáquina: ${maquina || 'Sin especificar'}\nDescripción: ${descripcion}\nCantidad: ${cantidad}\n\nEl dueño será notificado.`)
 }
