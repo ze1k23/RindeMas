@@ -17,20 +17,10 @@ export default async function handler(req, res) {
   const telefono = From.replace('whatsapp:', '')  // ej: "+5491123456789"
 
   // Buscar a qué usuario pertenece este número en la tabla empleados
-  const { data: empleado, error: empError } = await supabase
-    .from('empleados')
-    .select('user_id, nombre')
-    .eq('telefono', telefono)
-    .maybeSingle()
+ // Temporal: usa tu user_id fijo para pruebas
+const userId = 'f8b6eb81-29a0-4763-800c-53806562d806' // pega el UUID que copiaste
 
-  if (empError || !empleado) {
-    console.error('Empleado no encontrado', telefono, empError)
-    // Responder con un mensaje de error (Twilio mostrará esto como respuesta)
-    return res.status(200).send(`❌ Número no autorizado. Contactá al administrador.`)
-  }
 
-  const userId = empleado.user_id
-  const mensaje = Body.trim().toLowerCase()
 
   // Intentar parsear el mensaje con un formato simple
   // Ejemplo esperado: "repuesto maquina: cosechadora descripcion: filtro aceite cantidad: 2"
