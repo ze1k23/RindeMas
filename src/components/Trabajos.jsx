@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { Modal, Campo, IC, SC, BtnPrimario, BtnSecundario, BtnIcono, KpiCard, Badge, Vacio, ConfirmarEliminar, Spinner } from "./UI"
 import { calcCostoTrabajo, filtrarMaquinas, formatPeso, TIPOS_TRABAJO, GASTOS_POR_TIPO, calcGastosExtra, calcEstadoLote } from "../utils"
-import { getTrabajos, addTrabajo, updateTrabajo, deleteTrabajo, getLotes, getMaquinas, updateLote } from "../db"
+import { getTrabajos, addTrabajo, updateTrabajo, deleteTrabajo, getLotes, getMaquinas, updateLote, addCombustible } from "../db"
 
 function SeccionGastos({ tipo, ha, extras, onChange }) {
   const campos = GASTOS_POR_TIPO[tipo]||[]
@@ -169,7 +169,21 @@ export default function Trabajos({ userId }) {
     let todosTrabajos
     if (modal==="nuevo") {
       const nuevo = await addTrabajo(userId, datos)
-      if (nuevo) { setTrabajos(prev=>[nuevo,...prev]); todosTrabajos=[nuevo,...trabajos] }
+      if (nuevo) {
+        setTrabajos(prev=>[nuevo,...prev])
+        todosTrabajos=[nuevo,...trabajos]
+        // Registrar automáticamente en combustible
+        if (datos.litros > 0 && datos.precioGasoil > 0) {
+          await addCombustible(userId, {
+            fecha:     datos.fecha,
+            maquina:   datos.maquina,
+            litros:    datos.litros,
+            precio:    datos.precioGasoil,
+            proveedor: "",
+            notas:     `Auto desde trabajo: ${datos.tipo} en ${datos.lote}`,
+          })
+        }
+      }
     } else {
       const act={...modal,...datos}
       await updateTrabajo(act)
