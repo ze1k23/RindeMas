@@ -1,108 +1,130 @@
+// api/whatsapp-webhook.js
+// Webhook de Twilio — recibe mensajes de WhatsApp, usa Groq para interpretarlos
+// y guarda el repuesto en Supabase.
+
 import { createClient } from '@supabase/supabase-js'
+import Groq from 'groq-sdk'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // necesitás agregar esto a Vercel
 )
 
+const groq = new Groq({ apiKey: process.env.VITE_GROQ_KEY })
+
+// ─── PARSEO CON IA ────────────────────────────────────────────────────────────
+async function parsearMensaje(mensaje) {
+  try {
+    const resp = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        {
+          role: "system",
+          content: `Sos un asistente que extrae información de pedidos de repuestos de maquinaria agrícola. 
+Cuando recibas un mensaje, extraé:
+- maquina: el nombre de la máquina (si no se menciona, usá "Sin especificar")
+- descripcion: qué repuesto o pieza necesitan (lo más detallado posible)
+- cantidad: cuántas unidades (si no se menciona, usá 1)
+Respondé ÚNICAMENTE con JSON válido, sin texto extra, sin markdown.
+Ejemplo: {"maquina":"Cosechadora 150","descripcion":"Filtro de aceite Donaldson","cantidad":2}`
+        },
+        { role: "user", content: mensaje }
+      ],
+      max_tokens: 150,
+      temperature: 0.1,
+    })
+    const texto = resp.choices[0]?.message?.content?.trim()
+    return JSON.parse(texto)
+  } catch (err) {
+    console.error("Error Groq parsing:", err)
+    // Fallback: devolver el mensaje completo como descripción
+    return { maquina: "Sin especificar", descripcion: mensaje, cantidad: 1 }
+  }
+}
+
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed')
+  if (req.method !== "POST") return res.status(405).send("Method Not Allowed")
 
   const { Body, From } = req.body
-  const telefono = From.replace('whatsapp:', '').replace(/^\+/, '')
+  if (!Body || !From) return res.status(400).send("Faltan datos")
 
-  // Buscar empleado
+  const telefono = From.replace("whatsapp:", "").replace(/^\+/, "")
+  const mensaje  = Body.trim()
+
+  // 1. Verificar que el empleado está autorizado
   const { data: empleado, error: empError } = await supabase
-    .from('empleados')
-    .select('user_id, nombre')
-    .eq('telefono', telefono)
-    .eq('activo', true)
+    .from("empleados")
+    .select("user_id, nombre")
+    .eq("telefono", telefono)
+    .eq("activo", true)
     .maybeSingle()
 
   if (empError || !empleado) {
-    console.error('Empleado no autorizado', telefono, empError)
-    return res.status(200).send('❌ Número no autorizado. Contactá al administrador.')
+    console.error("Empleado no autorizado:", telefono)
+    res.setHeader("Content-Type", "text/plain")
+    return res.status(200).send("❌ Tu número no está autorizado. Contactá al administrador.")
   }
 
-  const userId = empleado.user_id
-  const mensaje = Body.trim()
+  // 2. Parsear el mensaje con IA
+  const parsed = await parsearMensaje(mensaje)
+  const hoy    = new Date().toISOString().split("T")[0]
 
-  // Parseo simple
-  let maquina = ''
-  let descripcion = mensaje
-  let cantidad = 1
-
-  const maquinaMatch = mensaje.match(/maquina[: ]+([^\n]+)/i)
-  if (maquinaMatch) maquina = maquinaMatch[1].trim()
-
-  const descMatch = mensaje.match(/descripcion[: ]+([^\n]+)/i)
-  if (descMatch) descripcion = descMatch[1].trim()
-
-  const cantMatch = mensaje.match(/cantidad[: ]+(\d+)/i)
-  if (cantMatch) cantidad = parseInt(cantMatch[1], 10)
-
-  const hoy = new Date()
-  const fechaISO = hoy.toISOString().split('T')[0]
-
-  // Insertar repuesto
-  const { data: nuevoRepuesto, error: insertError } = await supabase
-    .from('repuestos')
+  // 3. Guardar el repuesto
+  const { data: repuesto, error: insertError } = await supabase
+    .from("repuestos")
     .insert({
-      user_id: userId,
-      maquina_nombre: maquina || 'Sin especificar',
-      fecha: fechaISO,
-      descripcion: descripcion,
-      cantidad: cantidad,
-      costo: 0,
-      comprado: false,
-      costo_real: 0,
-      proveedor: 'WhatsApp',
-      notas: `Pedido por ${empleado.nombre} (${telefono})`
+      user_id:       empleado.user_id,
+      maquina_nombre:parsed.maquina || "Sin especificar",
+      descripcion:   parsed.descripcion || mensaje,
+      cantidad:      parsed.cantidad || 1,
+      costo_estimado:0,
+      costo_real:    0,
+      comprado:      false,
+      fecha_pedido:  hoy,
+      origen:        "whatsapp",
+      pedido_por:    empleado.nombre,
+      notas:         `Mensaje original: "${mensaje}"`,
     })
     .select()
     .single()
 
   if (insertError) {
-    console.error('Error al insertar:', insertError)
-    return res.status(200).send('❌ Error al guardar el pedido.')
+    console.error("Error guardando repuesto:", insertError)
+    res.setHeader("Content-Type", "text/plain")
+    return res.status(200).send("❌ No se pudo registrar el pedido. Intentá de nuevo.")
   }
 
-  // Buscar destinatario de notificaciones
+  // 4. Notificar al encargado de compras
   const { data: notificador } = await supabase
-    .from('empleados')
-    .select('telefono, nombre')
-    .eq('user_id', userId)
-    .eq('recibe_notificaciones', true)
+    .from("empleados")
+    .select("telefono, nombre")
+    .eq("user_id", empleado.user_id)
+    .eq("recibe_notificaciones", true)
     .maybeSingle()
 
-  if (notificador && notificador.telefono) {
+  if (notificador?.telefono) {
     try {
-      const response = await fetch(`${process.env.VERCEL_URL || 'https://rinde-mas-fawn.vercel.app'}/api/send-whatsapp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      await fetch(`${process.env.VERCEL_URL || "https://rinde-mas-fawn.vercel.app"}/api/send-whatsapp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: notificador.telefono,
           repuesto: {
-            maquina: nuevoRepuesto.maquina_nombre,
-            descripcion: nuevoRepuesto.descripcion,
-            cantidad: nuevoRepuesto.cantidad,
-            costo: nuevoRepuesto.costo,
-            proveedor: 'WhatsApp'
+            maquina:      repuesto.maquina_nombre,
+            descripcion:  repuesto.descripcion,
+            cantidad:     repuesto.cantidad,
+            pedidoPor:    empleado.nombre,
           }
         })
       })
-      if (!response.ok) {
-        console.error('Error al notificar:', response.status)
-      } else {
-        console.log('Notificación enviada a', notificador.telefono)
-      }
     } catch (err) {
-      console.error('Error notificando:', err)
+      console.error("Error notificando:", err)
     }
-  } else {
-    console.log('No hay empleado designado para notificaciones')
   }
 
-  res.setHeader('Content-Type', 'text/plain')
-  res.status(200).send(`✅ Pedido registrado:\nMáquina: ${maquina || 'Sin especificar'}\nDescripción: ${descripcion}\nCantidad: ${cantidad}\n\nEl encargado de compras será notificado.`)
+  // 5. Responder al empleado confirmando el pedido
+  const respuesta = `✅ Pedido registrado en RindeMás:\n\n🔧 ${parsed.descripcion}\n🚜 Máquina: ${parsed.maquina}\n📦 Cantidad: ${parsed.cantidad}\n\n${notificador ? `📱 Se notificó a ${notificador.nombre}.` : "El administrador verá el pedido en la app."}`
+
+  res.setHeader("Content-Type", "text/plain")
+  res.status(200).send(respuesta)
 }
