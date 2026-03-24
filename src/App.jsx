@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { supabase }    from "./supabase"
-import { sincronizarPendientes, getPendientes, isOnline } from "./offlineStorage"
+import { getPendientes, isOnline } from "./offlineStorage"
+import { sincronizarPendientes } from "./db"
 import { BannerOffline, BannerSync } from "./components/UI"
 import Auth        from "./components/Auth"
 import Dashboard   from "./components/Dashboard"
